@@ -1,38 +1,49 @@
-name: Publish Docker image to GHCR (multi‑arch + arch‑specific tags)
+# .github/workflows/publish-container.yml
+name: Publish Docker image to GHCR
 
-# --------------------------------------------------------------
-# WHEN TO RUN
-# --------------------------------------------------------------
 on:
   push:
-    branches: [ main ]        # → rebuild “latest”
-    tags:    [ '*' ]          # → rebuild a specific version tag
+    # Any push to the default branch -> push the "latest" tag
+    branches: [ main ]
+
+    # Any git tag (v1.2.3, 2024.09.27, …) -> push that tag as an image tag
+    tags: [ '*' ]
+
   schedule:
-    # Every 14 days at 00:00 UTC (bi‑weekly rebuild)
+    # Every 14 days at 00:00 UTC.
+    # GitHub uses POSIX cron, so “*/14” works on the *day‑of‑month* field.
     - cron: '0 0 */14 * *'
-  workflow_dispatch:         # manual “Run workflow” button
+
+  # Manual trigger
+  workflow_dispatch:
 
 permissions:
-  contents: read            # checkout
+  contents: read            # checkout the repo
   packages: write           # push to ghcr.io
 
 jobs:
   build-and-push:
-    name: Build + push (multi‑arch + arch‑tags)
+    name: Build & push multi‑arch image to GHCR
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. Set up QEMU (for arm64 builds on the amd64 runner)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
           platforms: linux/amd64,linux/arm64
 
+      # 3. Set up Docker Buildx (multi‑arch builder)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 4. Authenticate to GHCR
+      # No extra secret needed – the built‑in GITHUB_TOKEN has the
+      # required scope because of the `packages: write` permission.
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -40,119 +51,36 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Determine image tags
+      # 5. Compute which tag(s) we should push
+      - name: Compute image tags
         id: tags
         run: |
           IMAGE="ghcr.io/${{ github.repository_owner }}/${{ github.repository }}"
 
-          # -----------------------------------------------------------------
-          # Work out whether we are on a git tag or a branch/schedule.
-          #   * tag   -> use the exact git tag (e.g. v1.2.3)
-          #   * else  -> treat it as a "latest" build (branch main or schedule)
-          # -----------------------------------------------------------------
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
-            VERSION="${GITHUB_REF_NAME}"          # e.g. v1.2.3
-            # Generic manifest tags (no arch suffix)
-            echo "GENERIC_TAGS=${IMAGE}:${VERSION}" >> $GITHUB_OUTPUT
-            # Architecture‑specific tags
-            echo "ARCH_TAGS=${IMAGE}:${VERSION}-amd64,${IMAGE}:${VERSION}-arm64" >> $GITHUB_OUTPUT
+            # Tag push → use the git tag as image tag (e.g. v1.2.3)
+            echo "TAGS=${IMAGE}:${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+            echo "PUSH_LATEST=false" >> $GITHUB_OUTPUT
           else
-            # Anything that is NOT a git tag (main push, schedule, manual)
-            VERSION="latest"
-            echo "GENERIC_TAGS=${IMAGE}:${VERSION}" >> $GITHUB_OUTPUT
-            echo "ARCH_TAGS=${IMAGE}:${VERSION}-amd64,${IMAGE}:${VERSION}-arm64" >> $GITHUB_OUTPUT
+            # Branch push (only main triggers this workflow)
+            echo "TAGS=${IMAGE}:latest" >> $GITHUB_OUTPUT
+            echo "PUSH_LATEST=true" >> $GITHUB_OUTPUT
           fi
 
-      # Build & push **arch‑specific** images (no manifest yet)
-      # We build each architecture *separately* so we can tag them
-      # with the `‑amd64` / `‑arm64` suffixes.
-      - name: Build & push amd64 image (arch‑specific tag)
+      # 6. Build the multi‑arch image and push it
+      - name: Build & push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.tags.outputs.ARCH_TAGS }}   # contains both arch tags; we’ll filter later
-          # The filter below keeps only the `‑amd64` tag for this step
-          # (docker/build-push-action can’t filter, so we use a tiny script)
-          # We will run a tiny wrapper to keep only the right tag.
-          # This is easier than trying to pass a filtered list directly.
-          # The wrapper will be explained a few lines down.
-          #
-          # IMPORTANT: When the workflow is triggered by the schedule we want a clean rebuild:
-          no-cache: ${{ github.event_name == 'schedule' }}
+          tags: ${{ steps.tags.outputs.TAGS }}
 
-      - name: Filter amd64 tag (internal step – do not modify)
-        id: filter_amd64
-        run: |
-          # `steps.tags.outputs.ARCH_TAGS` looks like:
-          #   ghcr.io/owner/repo:latest-amd64,ghcr.io/owner/repo:latest-arm64
-          # We keep only the *amd64* entry for the previous step.
-          echo "FILTERED=$(echo '${{ steps.tags.outputs.ARCH_TAGS }}' | tr ',' '\n' | grep -i amd64)" >> $GITHUB_OUTPUT
-
-      - name: Re‑push amd64 with filtered tag
-        # This tiny extra push ensures that ONLY the amd64 tag is sent for the amd64 build.
-        # (docker/build-push-action pushes everything from the previous step,
-        #  so we re‑push the filtered list to avoid the arm64 tag contaminating it.)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.filter_amd64.outputs.FILTERED }}
-          no-cache: ${{ github.event_name == 'schedule' }}
-
-      # Build & push arm64
-      - name: Build & push arm64 image (arch‑specific tag)
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/arm64
-          push: true
-          tags: ${{ steps.tags.outputs.ARCH_TAGS }}
-          no-cache: ${{ github.event_name == 'schedule' }}
-
-      - name: Filter arm64 tag (internal step – do not modify)
-        id: filter_arm64
-        run: |
-          echo "FILTERED=$(echo '${{ steps.tags.outputs.ARCH_TAGS }}' | tr ',' '\n' | grep -i arm64)" >> $GITHUB_OUTPUT
-
-      - name: Re‑push arm64 with filtered tag
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/arm64
-          push: true
-          tags: ${{ steps.filter_arm64.outputs.FILTERED }}
-          no-cache: ${{ github.event_name == 'schedule' }}
-
-      # Create **manifest list** (the generic tags)
-      # Now both arch‑specific images exist in the registry.
-      # We combine them under the *generic* tags (latest, vX.Y.Z).
-      - name: Create and push manifest list for generic tags
-        env:
-          IMAGE: ghcr.io/${{ github.repository_owner }}/${{ github.repository }}
-          GEN_TAGS: ${{ steps.tags.outputs.GENERIC_TAGS }}
-          AMD_TAG: ${{ steps.filter_amd64.outputs.FILTERED }}
-          ARM_TAG: ${{ steps.filter_arm64.outputs.FILTERED }}
-        run: |
-          # The generic tag list may contain several entries (e.g. just "latest"
-          # or "v1.2.3").  We iterate over them.
-          IFS=',' read -ra TAG_ARRAY <<< "$GEN_TAGS"
-          for TAG in "${TAG_ARRAY[@]}"; do
-            echo "Creating manifest $TAG from $AMD_TAG and $ARM_TAG"
-            docker buildx imagetools create -t "$TAG" "$AMD_TAG" "$ARM_TAG"
-          done
-
-      # Summary (nice to have)
-      - name: Summary of what was pushed
+      # 7. (Optional) Echo what has been published – handy for logs
+      # -----------------------------------------------------------
+      - name: Summary
         if: always()
         run: |
-          echo "Generic manifest tags:"
-          echo "   ${{ steps.tags.outputs.GENERIC_TAGS }}"
-          echo "Architecture‑specific tags:"
-          echo "   ${{ steps.tags.outputs.ARCH_TAGS }}"
+          echo "Image(s) pushed:"
+          echo "   ${{ steps.tags.outputs.TAGS }}"
