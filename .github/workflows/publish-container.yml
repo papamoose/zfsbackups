@@ -9,6 +9,14 @@ on:
     # Any git tag (v1.2.3, 2024.09.27, …) -> push that tag as an image tag
     tags: [ '*' ]
 
+  schedule:
+    # Every 14 days at 00:00 UTC.
+    # GitHub uses POSIX cron, so “*/14” works on the *day‑of‑month* field.
+    - cron: '0 0 */14 * *'
+
+  # Manual trigger
+  workflow_dispatch:
+
 permissions:
   contents: read            # checkout the repo
   packages: write           # push to ghcr.io
