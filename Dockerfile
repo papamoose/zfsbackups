@@ -1,4 +1,6 @@
-FROM ubuntu:noble
+# Dockerhub lists the latest tag as to the latest LTS release
+FROM ubuntu:latest
+#FROM ubuntu:noble
 
 RUN apt-get update && apt-get install -y \
   build-essential \
