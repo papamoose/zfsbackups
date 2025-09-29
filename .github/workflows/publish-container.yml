@@ -55,7 +55,8 @@ jobs:
       - name: Compute image tags
         id: tags
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}/${{ github.repository }}"
+          #IMAGE="ghcr.io/${{ github.repository_owner }}/${{ github.repository }}"
+          IMAGE="ghcr.io/${{ github.repository }}"
 
           if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             # Tag push → use the git tag as image tag (e.g. v1.2.3)
