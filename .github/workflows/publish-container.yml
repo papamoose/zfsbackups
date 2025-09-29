@@ -77,11 +77,3 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.tags.outputs.TAGS }}
-
-      # 7. (Optional) Echo what has been published – handy for logs
-      # -----------------------------------------------------------
-      - name: Summary
-        if: always()
-        run: |
-          echo "Image(s) pushed:"
-          echo "   ${{ steps.tags.outputs.TAGS }}"
