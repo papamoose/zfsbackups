@@ -1,6 +1,5 @@
 # Dockerhub lists the latest tag as to the latest LTS release
 FROM ubuntu:latest
-#FROM ubuntu:noble
 
 RUN apt-get update && apt-get install -y \
   build-essential \
@@ -18,6 +17,12 @@ RUN apt-get update && apt-get install -y \
   net-tools \
   iputils-ping \
   && rm -rf /var/lib/apt/lists/*
+
+# remove unnecessary installed cron files because this isn't a normal system
+rm -f /etc/cron.d/zfsutils-linux
+rm -f /etc/cron.d/e2scrub_all
+# Maybe we do want sanoid for snapshots
+#rm -f /etc/cron.d/sanoid
 
 # Users
 RUN userdel ubuntu
