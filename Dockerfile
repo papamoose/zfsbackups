@@ -16,11 +16,12 @@ RUN apt-get update && apt-get install -y \
   iproute2 \
   net-tools \
   iputils-ping \
+  rsyslog \
   && rm -rf /var/lib/apt/lists/*
 
 # remove unnecessary installed cron files because this isn't a normal system
-rm -f /etc/cron.d/zfsutils-linux
-rm -f /etc/cron.d/e2scrub_all
+RUN rm -f /etc/cron.d/zfsutils-linux && \
+    rm -f /etc/cron.d/e2scrub_all
 # Maybe we do want sanoid for snapshots
 #rm -f /etc/cron.d/sanoid
 
@@ -41,7 +42,7 @@ RUN sed -i \
       /etc/ssh/sshd_config
 
 # supervisord
-COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./supervisord.conf /etc/supervisor/supervisord.conf
 COPY ./entrypoint.sh /usr/local/sbin/entrypoint.sh
 RUN chmod 555 /usr/local/sbin/entrypoint.sh
 
