@@ -18,4 +18,4 @@ groupmod -g "$HOST_GID" zfsbackups
 # Make sure the home directory has the correct ownership
 chown -R "$HOST_UID":"$HOST_GID" /data/zfsbackups
 
-exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
