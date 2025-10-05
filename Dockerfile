@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
   less \
   zfsutils-linux \
   sanoid \
+  mbuffer \
   openssh-server \
   openssh-client \
   cron \
@@ -17,6 +18,7 @@ RUN apt-get update && apt-get install -y \
   net-tools \
   iputils-ping \
   rsyslog \
+  bmon \
   && rm -rf /var/lib/apt/lists/*
 
 # remove unnecessary installed cron files because this isn't a normal system
