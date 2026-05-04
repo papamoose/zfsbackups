@@ -24,8 +24,8 @@ RUN apt-get update && apt-get install -y \
 #  sanoid \
 
 RUN cd /tmp/ && \
-  wget https://github.com/jimsalterjrs/sanoid/archive/refs/tags/v2.3.0.tar.gz && \
-  tar -xf v2.3.0.tar.gz && \
+  wget https://github.com/jimsalterjrs/sanoid/archive/refs/tags/v2.3.0.tar.gz -O /tmp/v2.3.0.tar.gz && \
+  tar -xf /tmp/v2.3.0.tar.gz && \
   cd /tmp/sanoid-2.3.0 && \
   ln -s packages/debian . && \
   dpkg-buildpackage -uc -us && \
