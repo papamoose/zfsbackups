@@ -1,5 +1,5 @@
 # Dockerhub lists the latest tag as to the latest LTS release
-FROM ubuntu:noble
+FROM ubuntu:resolute
 
 RUN apt-get update && apt-get install -y \
   build-essential \
@@ -18,17 +18,8 @@ RUN apt-get update && apt-get install -y \
   iputils-ping \
   rsyslog \
   bmon \
-  git \
+  sanoid \
   && rm -rf /var/lib/apt/lists/*
-
-#  sanoid \
-RUN cd /tmp && \
-  git clone https://github.com/jimsalterjrs/sanoid.git && \
-  cd sanoid && \
-  git checkout $(git tag | grep "^v" | tail -n 1) && \
-  ln -s packages/debian . && \
-  dpkg-buildpackage -uc -us && \
-  apt install ../sanoid_*_all.deb
 
 # remove unnecessary installed cron files because this isn't a normal system
 RUN rm -f /etc/cron.d/zfsutils-linux && \
