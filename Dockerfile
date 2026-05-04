@@ -18,15 +18,14 @@ RUN apt-get update && apt-get install -y \
   iputils-ping \
   rsyslog \
   bmon \
-  wget \
+  git \
   && rm -rf /var/lib/apt/lists/*
 
 #  sanoid \
-
-RUN cd /tmp/ && \
-  wget https://github.com/jimsalterjrs/sanoid/archive/refs/tags/v2.3.0.tar.gz -O /tmp/v2.3.0.tar.gz && \
-  tar -xf /tmp/v2.3.0.tar.gz && \
-  cd /tmp/sanoid-2.3.0 && \
+RUN cd /tmp && \
+  git clone https://github.com/jimsalterjrs/sanoid.git && \
+  cd sanoid && \
+  git checkout $(git tag | grep "^v" | tail -n 1) && \
   ln -s packages/debian . && \
   dpkg-buildpackage -uc -us && \
   apt install ../sanoid_*_all.deb
