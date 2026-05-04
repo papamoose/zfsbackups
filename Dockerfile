@@ -1,12 +1,11 @@
 # Dockerhub lists the latest tag as to the latest LTS release
-FROM ubuntu:latest
+FROM ubuntu:noble
 
 RUN apt-get update && apt-get install -y \
   build-essential \
   nano \
   less \
   zfsutils-linux \
-  sanoid \
   mbuffer \
   openssh-server \
   openssh-client \
@@ -19,7 +18,18 @@ RUN apt-get update && apt-get install -y \
   iputils-ping \
   rsyslog \
   bmon \
+  wget \
   && rm -rf /var/lib/apt/lists/*
+
+#  sanoid \
+
+RUN cd /tmp/ && \
+  wget https://github.com/jimsalterjrs/sanoid/archive/refs/tags/v2.3.0.tar.gz && \
+  tar -xf v2.3.0.tar.gz && \
+  cd /tmp/sanoid-2.3.0 && \
+  ln -s packages/debian . && \
+  dpkg-buildpackage -uc -us && \
+  apt install ../sanoid_*_all.deb
 
 # remove unnecessary installed cron files because this isn't a normal system
 RUN rm -f /etc/cron.d/zfsutils-linux && \
