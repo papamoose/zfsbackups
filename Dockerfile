@@ -1,7 +1,9 @@
 # Dockerhub lists the latest tag as to the latest LTS release
 FROM ubuntu:resolute
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && \
+  apt-get dist-upgrade -y \
+  apt-get install -y \
   build-essential \
   nano \
   less \
